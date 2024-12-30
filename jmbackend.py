@@ -1,5 +1,5 @@
 class Province:
-    def __init__(self, name, ptype, isSupply, connections)
+    def __init__(self, name, ptype, isSupply, connections):
         self.name = name
         self.ptype = ptype
         self.isSupply = isSupply
@@ -89,13 +89,14 @@ def create_provinces():
     ]
 
 class Nation:
-    def __init__(self, name, supplycenters, units):
+    def __init__(self, name, supcents, units):
         self.name = name
-        self.units 
+        self.supcents = supcents
+        self.units = units
 
 class Unit:
-    def __init__(self, loc, isFleet):
-        self.loc = loc
+    def __init__(self, location, isFleet):
+        self.location = location
         self.isFleet = isFleet
 
 def create_nations():
@@ -145,32 +146,52 @@ class GameState:
 def create_gameState():
     nations = create_nations()
     provinces = create_provinces()
-    return gameState(nations, provinces)
+    return GameState(nations, provinces)
 
 class Move:
-    def __init__(self, move, target, moveType):
+    def __init__(self, unit, target):
         self.unit = unit
         self.targetProvince = target
 
+def findProvince(name, provinces):
+        for game_province in provinces:
+            if name == game_province.name:
+                return game_province
+
 def checkPossibleMoves(gameState, unit):
+    # find unit's location as a province object in gamestate
+    loc = unit.location
+    unit_province = findProvince(loc, gameState.provinces)
 
-    # find unit's location
-    unit.loc = loc
-    for province in gameState.provinces:
-        if loc == province.name:
-            unitProvince = province
-            break
-
-    #generates set of possible moves
+    #looks at valid adjacent provinces to unit's locations
     possible_moves = []
-    if unit.isFleet for province in unitProvince.connections:
-        if province.pytpe == "coast" | "water":
-            possible_moves.append(Move(unit, province))
-    else for province in unitProvince.connections:
-        if province.ptype == "coast" | "land":
-            possible_moves.append(Move(unit, province))
+ 
+    neighboring_provinces = []
+    for province in unit_province.connections:
+        found_province = findProvince(province, gameState.provinces)
+        neighboring_provinces.append(found_province)
+    
+    for province in neighboring_provinces:
+        if unit.isFleet and province.ptype in ["water", "coast"]:
+            possible_moves.append(Move(unit, province.name))
+        elif (not unit.isFleet) and province.ptype in ["land", "coast"]:
+            possible_moves.append(Move(unit, province.name))
 
-    print(possible_moves)
+    return possible_moves
+
+def displayMoves(moves):
+    strings = []
+    for move in moves:
+        strings.append(move.targetProvince)
+    return strings
+
+if __name__ == "__main__":
+    gameState = create_gameState()
+
+    test_unit = Unit("CON", True)
+    moves = checkPossibleMoves(gameState, test_unit)
+    names = displayMoves(moves)
+    print(names)
 
 
 
