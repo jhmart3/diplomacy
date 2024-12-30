@@ -24,7 +24,7 @@ def create_provinces():
         Province("BUL/EC", "coast", True, ["BLA", "CON", "RUM"]),
         Province("BUL/SC", "coast", True, ["AEG", "CON", "GRE"]),
         Province("bul", "coast", True, ["AEG", "BLA", "CON", "GRE", "RUM", "SER"]),
-        Province("BUR", "land", False, ["BEL", "GAS", "RUH", "MAR", "MUN", "PAR", "PIC", "SWI"]),
+        Province("BUR", "land", False, ["BEL", "GAS", "RUH", "MAR", "MUN", "PAR", "PIC"]),
         Province("CLY", "coast", False, ["EDI", "LVP", "NAO", "NWG"]),
         Province("CON", "coast", True, ["AEG", "BUL/EC", "BUL/SC", "BLA", "ANK", "SMY"]),
         Province("DEN", "coast", True, ["BAL", "HEL", "KIE", "NTH", "SKA", "SWE"]),
@@ -45,9 +45,9 @@ def create_provinces():
         Province("LVP", "coast", True, ["CLY", "EDI", "IRI", "NAO", "WAL", "YOR"]),
         Province("LYO", "water", False, ["MAR", "PIE", "SPA/SC", "TUS", "TYS", "WES"]),
         Province("MAO", "water", False, ["BRE", "ENG", "GAS", "IRI", "NAF", "NAO", "POR", "SPA/NC", "SPA/SC", "WES"]),
-        Province("MAR", "coast", False, ["BUR", "GAS", "LYO", "PIE", "SPA/SC", "SWI"]),
+        Province("MAR", "coast", False, ["BUR", "GAS", "LYO", "PIE", "SPA/SC"]),
         Province("MOS", "land", True, ["LVN", "SEV", "STP", "UKR", "WAR"]),
-        Province("MUN", "land", False, ["BER", "BOH", "BUR", "KIE", "RUH", "SIL", "TYR", "SWI"]),
+        Province("MUN", "land", False, ["BER", "BOH", "BUR", "KIE", "RUH", "SIL", "TYR"]),
         Province("NAF", "coast", False, ["MAO", "TUN", "WES"]),
         Province("NAO", "water", False, ["CLY", "IRI", "LVP", "MAO", "NWG"]),
         Province("NAP", "coast", False, ["APU", "ION", "ROM", "TYS"]),
@@ -56,7 +56,7 @@ def create_provinces():
         Province("NWG", "water", False, ["BAR", "CLY", "EDI", "NAO", "NWY", "NTH"]),
         Province("PAR", "land", True, ["BUR", "BRE", "GAS", "PIC"]),
         Province("PIC", "coast", False, ["BEL", "BRE", "BUR", "ENG", "PAR"]),
-        Province("PIE", "coast", False, ["LYO", "MAR", "TUS", "TYR", "VEN", "SWI"]),
+        Province("PIE", "coast", False, ["LYO", "MAR", "TUS", "TYR", "VEN"]),
         Province("POR", "coast", True, ["MAO", "SPA/NC", "SPA/SC"]),
         Province("PRU", "coast", False, ["BAL", "BER", "LVN", "SIL", "WAR"]),
         Province("ROM", "coast", True, ["APU", "NAP", "TUS", "TYS", "VEN"]),
@@ -77,7 +77,7 @@ def create_provinces():
         Province("TRI", "coast", True, ["ADR", "ALB", "BUD", "SER", "TYR", "VEN", "VIE"]),
         Province("TUN", "coast", True, ["ION", "NAF", "TYS", "WES"]),
         Province("TUS", "coast", False, ["LYO", "PIE", "ROM", "TYS", "VEN"]),
-        Province("TYR", "land", False, ["BOH", "MUN", "PIE", "TRI", "VEN", "VIE", "SWI"]),
+        Province("TYR", "land", False, ["BOH", "MUN", "PIE", "TRI", "VEN", "VIE"]),
         Province("TYS", "water", False, ["ION", "LYO", "ROM", "NAP", "TUN", "TUS", "WES"]),
         Province("UKR", "land", False, ["GAL", "MOS", "RUM", "SEV", "WAR"]),
         Province("VEN", "coast", True, ["ADR", "APU", "PIE", "ROM", "TRI", "TUS", "TYR"]),
@@ -98,6 +98,12 @@ class Unit:
     def __init__(self, location, isFleet):
         self.location = location
         self.isFleet = isFleet
+
+    def getType(self):
+        if self.isFleet:
+            return "Fleet"
+        else:
+            return "Army"
 
 def create_nations():
     return [
@@ -177,7 +183,10 @@ def checkPossibleMoves(gameState, unit):
         elif (not unit.isFleet) and province.ptype in ["land", "coast"]:
             possible_moves.append(Move(unit, province.name))
 
-    return possible_moves
+    if possible_moves:
+        return possible_moves
+    else:
+        print(f"No possible moves for the {unit.getType()} in {unit.getLocation}")
 
 def displayMoves(moves):
     strings = []
@@ -188,10 +197,10 @@ def displayMoves(moves):
 if __name__ == "__main__":
     gameState = create_gameState()
 
-    test_unit = Unit("CON", True)
+    test_unit = Unit("CON", False)
     moves = checkPossibleMoves(gameState, test_unit)
     names = displayMoves(moves)
-    print(names)
+    print(f"The {test_unit.getType()} in {test_unit.location} can move to {names}")
 
 
 
