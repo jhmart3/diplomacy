@@ -173,7 +173,6 @@ class Support:
         self.supported_move = supported_move
         self.cutOff = False
 
-
 def findProvince(name, provinces):
     for game_province in provinces:
             if name == game_province.name:
@@ -209,12 +208,6 @@ def checkPossibleMoves(gameState, unit):
     else:
         print(f"No possible moves for the {unit.getType()} in {unit.getLocation}")
 
-def displayMoves(moves):
-    strings = []
-    for move in moves:
-        strings.append(move.targetProvince)
-    return strings
-
 def checkSupportOptions(gameState, unit):
     loc = unit.location
     unit_province = findProvince(loc, gameState.provinces)
@@ -242,8 +235,16 @@ def checkConvoyOptions(gameState, unit):
     #to do
     return
 
-# Resolution
+def checkOptionsOneUnit(gameState, unit):
+    return checkPossibleMoves(gameState, unit) + checkSupportOptions(gameState, unit)
 
+def getAllMoves(gameState):
+    moves = []
+    for nation in nations:
+        for unit in nation.units:
+            moves = moves + checkOptionsOneUnit(gameState, unit)
+
+# Resolution
 def processTurns(gameState, turn):
     print("------PROCESSING TURN-------")
     #resolve supports and cutoff supports
