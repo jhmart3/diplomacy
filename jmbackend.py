@@ -106,6 +106,9 @@ class Unit:
         else:
             return "Army"
 
+    def move(self, province):
+        self.location = province
+
 def create_nations():
     return [
         Nation(
@@ -160,11 +163,16 @@ class Move:
         self.unit = unit
         self.targetProvince = target
         self.support = 0
+        self.isHold = False
+        if self.unit.location == self.targetProvince:
+            self.isHold = True
 
 class Support:
     def __init__(self, unit, supported_move):
         self.unit = unit
         self.supported_move = supported_move
+        self.cutOff = False
+
 
 def findProvince(name, provinces):
     for game_province in provinces:
@@ -173,6 +181,7 @@ def findProvince(name, provinces):
     print(f"{name} was not found")
     return None
 
+# Move Engine
 def checkPossibleMoves(gameState, unit):
     # find unit's location as a province object in gamestate
     loc = unit.location
@@ -191,6 +200,9 @@ def checkPossibleMoves(gameState, unit):
             possible_moves.append(Move(unit, province.name))
         elif (not unit.isFleet) and province.ptype in ["land", "coast"]:
             possible_moves.append(Move(unit, province.name))
+
+    holdMove = Move(unit, unit.location)
+    possible_moves.append(holdMove)
 
     if possible_moves:
         return possible_moves
@@ -216,8 +228,8 @@ def checkSupportOptions(gameState, unit):
                 #print(displayMoves(potential_test_unit_moves))
                 for potential_test_unit_move in potential_test_unit_moves:
                     for possible_move in supporter_possible_moves:
-                        if possible_move.targetProvince == potential_test_unit_move.targetProvince:
-                            print(f"{unit.getType()} in {unit.location} can support a {test_unit.getType()} of {nation.name} move from {test_unit.location} to {possible_move.targetProvince}")
+                        if (possible_move.targetProvince == potential_test_unit_move.targetProvince) and (possible_move.targetProvince != unit.location):
+                            #print(f"{unit.getType()} in {unit.location} can support a {test_unit.getType()} of {nation.name} move from {test_unit.location} to {possible_move.targetProvince}")
                             possible_supports.append(Support(unit, potential_test_unit_move))
                         # else: print(f"{unit.getType()} in {unit.location} cannot support the {test_unit.getType()} in {test_unit.location}'s move to {possible_move.targetProvince} :(")
 
@@ -228,18 +240,139 @@ def checkSupportOptions(gameState, unit):
 
 def checkConvoyOptions(gameState, unit):
     #to do
-    
+    return
+
+# Resolution
+
+def processTurns(gameState, turn):
+    print("------PROCESSING TURN-------")
+    #resolve supports and cutoff supports
+    for order in turn:
+        if type(order) is Support:
+            for schmorder in turn:
+                if type(schmorder) is Move:
+                    if schmorder.targetProvince == order.unit.location:     
+                        order.cutOff = True
+                        print(f"{schmorder.unit.getType()} in {schmorder.unit.location} cut off support from the {order.unit.getType()} in {order.unit.location}.")
+                    if (order.supported_move.unit == schmorder.unit) and (order.supported_move.targetProvince == schmorder.targetProvince) and (not order.cutOff):
+                        schmorder.support += 1
+                        print(f"{order.unit.getType()} in {order.unit.location} successfully added support to {schmorder.unit.getType()} of {schmorder.unit.location}'s attack on {schmorder.targetProvince}.")
+
+    #resolve bounces
+    for order in turn:
+        if type(order) is Move:
+            for schmorder in turn:
+                if type(schmorder) is Move:
+                    if (order.targetProvince == schmorder.targetProvince) and (order.support == schmorder.support) and (order != schmorder):
+                        print(f"{order.unit.getType()} from {order.unit.location} bounced with {schmorder.unit.getType()} from {schmorder.unit.location} on the battleground of {order.targetProvince}")
+                        order.targetProvince = order.unit.location
+                        schmorder.targetProvince = schmorder.unit.location
+
+    for nation in gameState.nations:
+        for unit in nation.units:
+            for order in turn:
+                if order.unit == unit:
+                    if type(order) is Move:
+                        if (unit.location == order.targetProvince) and not order.isHold:
+                            print(f"{unit.getType()} in {unit.location} stays put after bouncing.")
+                        elif order.isHold:
+                            print(f"{unit.getType()} in {unit.location} holds.")
+                        else:
+                            print(f"Moving {unit.getType()} of {nation.name} from {unit.location} to {order.targetProvince}.")
+                        unit.move(order.targetProvince)
+
+    return gameState
+
+# Command Line Orders
+def select_nation(gameState):
+    print("Select a nation:")
+    for i, nation in enumerate(gameState.nations):
+        print(f"{i + 1}. {nation.name}")
+    while True:
+        try:
+            choice = int(input("Enter the number of your chosen nation: "))
+            if 1 <= choice <= len(gameState.nations):
+                return gameState.nations[choice - 1]
+            else:
+                print("Invalid choice. Please try again.")
+        except ValueError:
+            print("Invalid input. Please enter a number.")
+
+def issue_orders(gameState, nation):
+    print(f"\nYou have selected {nation.name}. Here are your units:")
+    for i, unit in enumerate(nation.units):
+        print(f"{i + 1}. {unit.getType()} in {unit.location}")
+    orders = []
+    for i, unit in enumerate(nation.units):
+        moves = checkPossibleMoves(gameState, unit)
+        supports = checkSupportOptions(gameState, unit)
+
+        print(f"\nOptions for {unit.getType()} in {unit.location}:")
+
+        # Display possible moves
+        if moves:
+            print("Possible moves:")
+            for j, move in enumerate(moves):
+                msg = f"{j + 1}. "
+                if move.isHold:
+                    print(msg + "Hold.")
+                else:
+                    print(msg + f"Move to {move.targetProvince}")
+        else:
+            print("No possible moves.")
+
+        # Display possible supports
+        if supports:
+            print("Possible supports:")
+            for j, support in enumerate(supports):
+                move_target = support.supported_move.targetProvince
+                supported_unit = support.supported_move.unit
+                print(f"{len(moves) + j + 1}. Support {supported_unit.getType()} from {supported_unit.location} to {move_target}")
+        else:
+            print("No possible supports.")
+
+        while True:
+            try:
+                choice = int(input(f"Choose an action for {unit.getType()} in {unit.location} (or 0 to skip): "))
+                if choice == 0:
+                    print(f"Skipping action for {unit.getType()} in {unit.location}.")
+                    break
+                elif 1 <= choice <= len(moves):
+                    selected_move = moves[choice - 1]
+                    orders.append(selected_move)
+                    print(f"Order added: {unit.getType()} in {unit.location} -> {selected_move.targetProvince}")
+                    break
+                elif len(moves) < choice <= len(moves) + len(supports):
+                    selected_support = supports[choice - len(moves) - 1]
+                    orders.append(selected_support)
+                    supported_unit = selected_support.supported_move.unit
+                    move_target = selected_support.supported_move.targetProvince
+                    print(f"Order added: Support {supported_unit.getType()} from {supported_unit.location} to {move_target}")
+                    break
+                else:
+                    print("Invalid choice. Please try again.")
+            except ValueError:
+                print("Invalid input. Please enter a number.")
+    return orders
+
 if __name__ == "__main__":
     gameState = create_gameState()
 
-    test_unit = Unit("CON", False)
-    moves = checkPossibleMoves(gameState, test_unit)
-    names = displayMoves(moves)
-    print(f"The {test_unit.getType()} in {test_unit.location} can move to {names}")
+    selected_nation = select_nation(gameState)
 
-    supports = checkSupportOptions(gameState, test_unit)
-    #print(supports)
+    while True:
+        orders = issue_orders(gameState, selected_nation)
 
+        print("\nYour orders:")
+        for order in orders:
+            if isinstance(order, Move):
+                if not order.isHold:
+                    print(f"Move {order.unit.getType()} from {order.unit.location} to {order.targetProvince}.")
+                if order.isHold:
+                    print(f"{order.unit.getType()} in {order.unit.location} holds.")
+            elif isinstance(order, Support):
+                supported_unit = order.supported_move.unit
+                move_target = order.supported_move.targetProvince
+                print(f"Support {supported_unit.getType()} from {supported_unit.location} to {move_target}.")
 
-
-    
+        gameState = processTurns(gameState, orders)
