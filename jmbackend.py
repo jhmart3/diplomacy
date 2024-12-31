@@ -19,11 +19,12 @@ def create_provinces():
         Province("BER", "coast", True, ["BAL", "KIE", "MUN", "PRU", "SIL"]),
         Province("BLA", "water", False, ["ANK", "ARM", "BUL/EC", "CON", "RUM", "SEV"]),
         Province("BOH", "land", False, ["GAL", "MUN", "SIL", "TYR", "VIE"]),
+        Province("BOT", "water", False, ["BAL", "FIN", "SWE", "STP/SC", "LVN"]),
         Province("BUD", "land", True, ["GAL", "RUM", "SER", "TRI", "VIE"]),
         Province("BRE", "coast", True, ["ENG", "GAS", "MAO", "PAR", "PIC"]),
         Province("BUL/EC", "coast", True, ["BLA", "CON", "RUM"]),
         Province("BUL/SC", "coast", True, ["AEG", "CON", "GRE"]),
-        Province("bul", "coast", True, ["AEG", "BLA", "CON", "GRE", "RUM", "SER"]),
+        Province("BUL", "coast", True, ["AEG", "BLA", "CON", "GRE", "RUM", "SER"]),
         Province("BUR", "land", False, ["BEL", "GAS", "RUH", "MAR", "MUN", "PAR", "PIC"]),
         Province("CLY", "coast", False, ["EDI", "LVP", "NAO", "NWG"]),
         Province("CON", "coast", True, ["AEG", "BUL/EC", "BUL/SC", "BLA", "ANK", "SMY"]),
@@ -69,7 +70,7 @@ def create_provinces():
         Province("SMY", "coast", True, ["AEG", "ANK", "ARM", "CON", "EAS", "SYR"]),
         Province("SPA/NC", "coast", True, ["GAS", "MAO", "POR"]),
         Province("SPA/SC", "coast", True, ["LYO", "MAO", "MAR", "POR", "WES"]),
-        Province("stp", "coast", False, ["BAR", "BOT", "FIN", "LVN", "MOS", "NWY"]),
+        Province("STP", "land", False, ["BAR", "BOT", "FIN", "LVN", "MOS", "NWY"]),
         Province("STP/NC", "coast", True, ["BAR", "NWY"]),
         Province("STP/SC", "coast", True, ["BOT", "FIN", "LVN"]),
         Province("SWE", "coast", True, ["BAL", "BOT", "DEN", "FIN", "NWY", "SKA"]),
@@ -158,11 +159,19 @@ class Move:
     def __init__(self, unit, target):
         self.unit = unit
         self.targetProvince = target
+        self.support = 0
+
+class Support:
+    def __init__(self, unit, supported_move):
+        self.unit = unit
+        self.supported_move = supported_move
 
 def findProvince(name, provinces):
-        for game_province in provinces:
+    for game_province in provinces:
             if name == game_province.name:
                 return game_province
+    print(f"{name} was not found")
+    return None
 
 def checkPossibleMoves(gameState, unit):
     # find unit's location as a province object in gamestate
@@ -178,7 +187,7 @@ def checkPossibleMoves(gameState, unit):
         neighboring_provinces.append(found_province)
     
     for province in neighboring_provinces:
-        if unit.isFleet and province.ptype in ["water", "coast"]:
+        if unit.isFleet and (province.ptype in ["water", "coast"]):
             possible_moves.append(Move(unit, province.name))
         elif (not unit.isFleet) and province.ptype in ["land", "coast"]:
             possible_moves.append(Move(unit, province.name))
@@ -194,6 +203,32 @@ def displayMoves(moves):
         strings.append(move.targetProvince)
     return strings
 
+def checkSupportOptions(gameState, unit):
+    loc = unit.location
+    unit_province = findProvince(loc, gameState.provinces)
+    supporter_possible_moves = checkPossibleMoves(gameState, unit)
+    possible_supports = []
+    for nation in gameState.nations:
+        for test_unit in nation.units:
+            if unit.location != test_unit.location:
+                #print(f"checking if the {unit.getType()} in {unit.location} can support the {test_unit.getType()} in {test_unit.location}")
+                potential_test_unit_moves = checkPossibleMoves(gameState, test_unit)
+                #print(displayMoves(potential_test_unit_moves))
+                for potential_test_unit_move in potential_test_unit_moves:
+                    for possible_move in supporter_possible_moves:
+                        if possible_move.targetProvince == potential_test_unit_move.targetProvince:
+                            print(f"{unit.getType()} in {unit.location} can support a {test_unit.getType()} of {nation.name} move from {test_unit.location} to {possible_move.targetProvince}")
+                            possible_supports.append(Support(unit, potential_test_unit_move))
+                        # else: print(f"{unit.getType()} in {unit.location} cannot support the {test_unit.getType()} in {test_unit.location}'s move to {possible_move.targetProvince} :(")
+
+    if possible_supports:
+        return possible_supports
+    else:
+        print(f"No possible supports for the {unit.getType()} in {unit.getLocation}")
+
+def checkConvoyOptions(gameState, unit):
+    #to do
+    
 if __name__ == "__main__":
     gameState = create_gameState()
 
@@ -201,6 +236,9 @@ if __name__ == "__main__":
     moves = checkPossibleMoves(gameState, test_unit)
     names = displayMoves(moves)
     print(f"The {test_unit.getType()} in {test_unit.location} can move to {names}")
+
+    supports = checkSupportOptions(gameState, test_unit)
+    #print(supports)
 
 
 
