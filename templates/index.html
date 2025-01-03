@@ -1,0 +1,406 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diplomacy Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=IM+Fell+English&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'IM Fell English', serif;
+            background-color: #fffbeb;
+        }
+        .text-green-800 {
+            color: #166534;
+        }
+        .text-amber-800 {
+            color: #92400e;
+        }
+        .text-red-800 {
+            color: #991b1b;
+        }
+        .text-blue-800 {
+            color: #1e40af;
+        }
+        .text-orange-800 {
+            color: #9a3412;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen p-8">
+    <div class="max-w-4xl mx-auto bg-amber-100 border-2 border-amber-900 rounded-lg p-8">
+        <h1 class="text-4xl text-center text-amber-900 font-bold mb-8">The Great Game of Diplomacy</h1>
+        
+        <div id="gameContainer">
+            <!-- Game interface will be rendered here -->
+            <button id="newGameBtn" class="w-full bg-amber-900 text-amber-100 p-4 rounded hover:bg-amber-800">
+                Begin New Game
+            </button>
+        </div>
+
+        <div id="gameInterface" class="hidden">
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <!-- Nations -->
+                <div class="bg-amber-50 border border-amber-900 rounded p-4">
+                    <h2 class="text-2xl text-amber-900 mb-4">Nations</h2>
+                    <div id="nationsList" class="space-y-2"></div>
+                </div>
+
+                <!-- Orders -->
+                <div class="bg-amber-50 border border-amber-900 rounded p-4">
+                    <h2 class="text-2xl text-amber-900 mb-4">Orders</h2>
+                    <div id="ordersList" class="space-y-4"></div>
+                </div>
+            </div>
+
+            <!-- Selected Orders Summary -->
+            <div id="ordersSummary" class="hidden bg-amber-50 border border-amber-900 rounded p-4">
+                <h2 class="text-2xl text-amber-900 mb-4">Selected Orders</h2>
+                <div id="selectedOrders" class="space-y-2"></div>
+                <button id="submitOrdersBtn" class="w-full bg-amber-900 text-amber-100 p-2 rounded mt-4 hover:bg-amber-800">
+                    Submit Orders
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let gameId = null;
+        let selectedNation = null;
+        let selectedOrders = {};
+
+        // Event Listeners
+        document.getElementById('newGameBtn').addEventListener('click', startNewGame);
+
+        // Start New Game
+        async function startNewGame() {
+            const response = await fetch('/api/game/new', { method: 'POST' });
+            const data = await response.json();
+            gameId = data.game_id;
+            
+            document.getElementById('newGameBtn').classList.add('hidden');
+            document.getElementById('gameInterface').classList.remove('hidden');
+            
+            fetchGameState();
+        }
+
+        // Fetch Game State
+        async function fetchGameState() {
+            const response = await fetch(`/api/game/${gameId}/state`);
+            const data = await response.json();
+            renderNations(data.nations);
+        }
+
+        // Render Nations
+        function renderNations(nations) {
+            const nationsList = document.getElementById('nationsList');
+            nationsList.innerHTML = nations.map(nation => `
+                <button 
+                    onclick="selectNation('${nation.name}')"
+                    class="w-full p-2 mb-2 bg-amber-200 text-amber-900 rounded hover:bg-amber-300">
+                    ${nation.name}
+                </button>
+            `).join('');
+        }
+
+        // Select Nation
+        async function selectNation(nationName) {
+            const response = await fetch(`/api/game/${gameId}/state`);
+            const data = await response.json();
+            const nation = data.nations.find(n => n.name === nationName);
+            selectedNation = nation;
+            
+            // Fetch and display options
+            const optionsResponse = await fetch(`/api/game/${gameId}/options/${nationName}`);
+            const options = await optionsResponse.json();
+            renderOrders(nation, options);
+        }
+
+        // Render Orders
+        function renderOrders(nation, options) {
+            const ordersList = document.getElementById('ordersList');
+            ordersList.innerHTML = nation.units.map(unit => `
+                <div class="border-b border-amber-300 pb-4">
+                    <h3 class="text-lg font-bold text-amber-900 mb-2">
+                        ${unit.type} at ${unit.location}
+                    </h3>
+                    <!-- Move Categories -->
+                    <div class="space-y-4">
+                        <!-- Hold -->
+                        <div>
+                            <h4 class="text-amber-900 font-semibold mb-2 flex items-center">
+                                <i data-lucide="anchor" class="w-4 h-4 mr-2"></i>
+                                Hold:</h4>
+                            <div class="space-x-2">
+                                ${options[unit.location]?.moves
+                                    .filter(move => move.isHold)
+                                    .map(move => `
+                                        <button 
+                                            onclick='selectOrder("${unit.location}", "move", ${JSON.stringify(move)})'
+                                            class="mb-2 bg-amber-200 text-amber-900 rounded p-2 hover:bg-amber-300">
+                                            Hold Position
+                                        </button>
+                                    `).join('')}
+                            </div>
+                        </div>
+
+                        <!-- Moves -->
+                        <div>
+                            <h4 class="text-amber-900 font-semibold mb-2 flex items-center">
+                                <i data-lucide="move" class="w-4 h-4 mr-2"></i>
+                                Move to:</h4>
+                            <div class="space-x-2">
+                                ${options[unit.location]?.moves
+                                    .filter(move => !move.isHold)
+                                    .map(move => `
+                                        <button 
+                                            onclick='selectOrder("${unit.location}", "move", ${JSON.stringify(move)})'
+                                            class="mb-2 bg-amber-200 text-amber-900 rounded p-2 hover:bg-amber-300">
+                                            ${move.target}
+                                        </button>
+                                    `).join('')}
+                            </div>
+                        </div>
+
+                        <!-- Supports -->
+                        <div>
+                            <h4 class="text-amber-900 font-semibold mb-2 flex items-center">
+                                <i data-lucide="shield" class="w-4 h-4 mr-2"></i>
+                                Support:</h4>
+                            <div class="space-x-2">
+                                ${options[unit.location]?.supports.map(support => `
+                                    <button 
+                                        onclick='selectOrder("${unit.location}", "support", ${JSON.stringify(support)})'
+                                        class="mb-2 bg-amber-200 text-amber-900 rounded p-2 hover:bg-amber-300">
+                                        ${support.supported_unit.type} from ${support.supported_unit.location} to ${support.target}
+                                    </button>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            
+            document.getElementById('ordersSummary').classList.remove('hidden');
+        }
+
+        // Select Order
+        function selectOrder(unitLocation, orderType, order) {
+            selectedOrders[unitLocation] = { type: orderType, ...order };
+            updateOrdersSummary();
+        }
+
+        // Update Orders Summary
+        function updateOrdersSummary() {
+            const selectedOrdersDiv = document.getElementById('selectedOrders');
+            selectedOrdersDiv.innerHTML = Object.entries(selectedOrders).map(([location, order]) => `
+                <div class="text-amber-900">
+                    ${location}: ${order.type === 'move' 
+                        ? (order.isHold ? 'Hold' : `Move to ${order.target}`)
+                        : `Support ${order.supported_unit.type} to ${order.target}`}
+                </div>
+            `).join('');
+        }
+        function formatOutcome(outcome) {
+            const supportText = (support) => support > 0 ? ` with ${support} support` : '';
+            const compareSupportText = (support1, support2) => ` (Support: ${support1} vs ${support2})`;
+
+            switch (outcome.type) {
+                case 'move_success':
+                    return `
+                        <div class="text-green-800">
+                            ${outcome.unit.type} at ${outcome.unit.location} successfully moved to ${outcome.target}
+                            ${supportText(outcome.support)}
+                        </div>`;
+                
+                case 'bounce':
+                    return `
+                        <div class="text-amber-800">
+                            ${outcome.unit1.type} from ${outcome.unit1.location} bounced with ${outcome.unit2.type} 
+                            from ${outcome.unit2.location} at ${outcome.target}
+                            ${(outcome.support1 > 0 || outcome.support2 > 0) ? 
+                                compareSupportText(outcome.support1, outcome.support2) : ''}
+                        </div>`;
+                
+                case 'push':
+                    return `
+                        <div class="text-red-800">
+                            ${outcome.attacker.type} from ${outcome.attacker.location} pushed ${outcome.defender.type} 
+                            at ${outcome.defender.location}
+                            ${(outcome.attack_support > 0 || outcome.defense_support > 0) ? 
+                                compareSupportText(outcome.attack_support, outcome.defense_support) : ''}
+                        </div>`;
+                
+                case 'support_success':
+                    return `
+                        <div class="text-blue-800">
+                            ${outcome.supporter.type} at ${outcome.supporter.location} successfully supported 
+                            ${outcome.supported.type} from ${outcome.supported.location} to ${outcome.target}
+                        </div>`;
+                
+                case 'support_cut':
+                    return `
+                        <div class="text-orange-800">
+                            Support from ${outcome.supporter.type} at ${outcome.supporter.location} was cut by 
+                            ${outcome.attacker.type} from ${outcome.attacker.location}
+                        </div>`;
+                
+                case 'hold':
+                    return `
+                        <div class="text-green-800">
+                            ${outcome.unit.type} at ${outcome.unit.location} held position
+                            ${supportText(outcome.support)}
+                        </div>`;
+                
+                case 'bounce_hold':
+                    return `
+                        <div class="text-amber-800">
+                            ${outcome.unit.type} at ${outcome.unit.location} bounced back after failed attack
+                            ${supportText(outcome.support)}
+                        </div>`;
+                
+                default:
+                    return '';
+            }
+        }
+        // Submit Orders
+        document.getElementById('submitOrdersBtn').addEventListener('click', async () => {
+            const response = await fetch(`/api/game/${gameId}/submit-orders`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    nation: selectedNation.name,
+                    orders: selectedOrders
+                })
+            });
+            const data = await response.json();
+            
+            // Create and show the results modal
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center';
+            modal.innerHTML = `
+                <div class="bg-amber-50 p-8 rounded-lg max-w-2xl max-h-[80vh] overflow-y-auto">
+                    <h2 class="text-2xl text-amber-900 mb-4">Order Resolution</h2>
+                    
+                    <div class="space-y-4">
+                        <div class="border-b border-amber-300 pb-2">
+                            <h3 class="font-bold text-amber-900">Initial Positions:</h3>
+                            ${Object.entries(data.oldState).map(([nation, units]) => `
+                                <div class="ml-4">
+                                    <span class="font-semibold">${nation}:</span>
+                                    ${units.map(([loc, type]) => `
+                                        ${type} at ${loc}
+                                    `).join(', ')}
+                                </div>
+                            `).join('')}
+                        </div>
+
+                        <div class="border-b border-amber-300 pb-2">
+                            <h3 class="font-bold text-amber-900">Orders Given:</h3>
+                            ${Object.entries(data.orders).map(([loc, order]) => `
+                                <div class="ml-4">
+                                    ${loc}: ${order.type === 'move' 
+                                        ? (order.isHold ? 'Hold' : `Move to ${order.target}`)
+                                        : `Support ${order.supported_unit.type} to ${order.target}`}
+                                </div>
+                            `).join('')}
+                        </div>
+
+                        <div>
+                            <h3 class="font-bold text-amber-900">New Positions:</h3>
+                            ${Object.entries(data.newState).map(([nation, units]) => `
+                                <div class="ml-4">
+                                    <span class="font-semibold">${nation}:</span>
+                                    ${units.map(([loc, type]) => `
+                                        ${type} at ${loc}
+                                    `).join(', ')}
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <button 
+                        onclick="this.closest('.fixed').remove(); fetchGameState();"
+                        class="mt-6 w-full bg-amber-900 text-amber-100 p-2 rounded hover:bg-amber-800">
+                        Close
+                    </button>
+                </div>
+            `;
+            function formatOutcome(outcome) {
+    const supportText = (support) => support > 0 ? ` with ${support} support` : '';
+    const compareSupportText = (support1, support2) => ` (Support: ${support1} vs ${support2})`;
+
+    switch (outcome.type) {
+        case 'move_success':
+            return `
+                <div class="text-green-800">
+                    ${outcome.unit.type} at ${outcome.unit.location} successfully moved to ${outcome.target}
+                    ${supportText(outcome.support)}
+                </div>`;
+        
+        case 'bounce':
+            return `
+                <div class="text-amber-800">
+                    ${outcome.unit1.type} from ${outcome.unit1.location} bounced with ${outcome.unit2.type} 
+                    from ${outcome.unit2.location} at ${outcome.target}
+                    ${(outcome.support1 > 0 || outcome.support2 > 0) ? 
+                        compareSupportText(outcome.support1, outcome.support2) : ''}
+                </div>`;
+        
+        case 'push':
+            return `
+                <div class="text-red-800">
+                    ${outcome.attacker.type} from ${outcome.attacker.location} pushed ${outcome.defender.type} 
+                    at ${outcome.defender.location}
+                    ${(outcome.attack_support > 0 || outcome.defense_support > 0) ? 
+                        compareSupportText(outcome.attack_support, outcome.defense_support) : ''}
+                </div>`;
+        
+        case 'support_success':
+            return `
+                <div class="text-blue-800">
+                    ${outcome.supporter.type} at ${outcome.supporter.location} successfully supported 
+                    ${outcome.supported.type} from ${outcome.supported.location} to ${outcome.target}
+                </div>`;
+        
+        case 'support_cut':
+            return `
+                <div class="text-orange-800">
+                    Support from ${outcome.supporter.type} at ${outcome.supporter.location} was cut by 
+                    ${outcome.attacker.type} from ${outcome.attacker.location}
+                </div>`;
+        
+        case 'hold':
+            return `
+                <div class="text-green-800">
+                    ${outcome.unit.type} at ${outcome.unit.location} held position
+                    ${supportText(outcome.support)}
+                </div>`;
+        
+        case 'bounce_hold':
+            return `
+                <div class="text-amber-800">
+                    ${outcome.unit.type} at ${outcome.unit.location} bounced back after failed attack
+                    ${supportText(outcome.support)}
+                </div>`;
+        
+        default:
+            return '';
+    }
+}
+            selectedOrders = {};
+            updateOrdersSummary();
+        });
+    </script>
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+    </script>
+</body>
+</html>
