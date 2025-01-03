@@ -13,8 +13,24 @@
             font-family: 'IM Fell English', serif;
             background-color: #fffbeb;
         }
+        .text-green-800 {
+            color: #166534;
+        }
+        .text-amber-800 {
+            color: #92400e;
+        }
+        .text-red-800 {
+            color: #991b1b;
+        }
+        .text-blue-800 {
+            color: #1e40af;
+        }
+        .text-orange-800 {
+            color: #9a3412;
+        }
     </style>
 </head>
+
 <body class="min-h-screen p-8">
     <div class="max-w-4xl mx-auto bg-amber-100 border-2 border-amber-900 rounded-lg p-8">
         <h1 class="text-4xl text-center text-amber-900 font-bold mb-8">The Great Game of Diplomacy</h1>
@@ -160,7 +176,7 @@
                                     <button 
                                         onclick='selectOrder("${unit.location}", "support", ${JSON.stringify(support)})'
                                         class="mb-2 bg-amber-200 text-amber-900 rounded p-2 hover:bg-amber-300">
-                                        ${support.supported_unit.type} to ${support.target}
+                                        ${support.supported_unit.type} from ${support.supported_unit.location} to ${support.target}
                                     </button>
                                 `).join('')}
                             </div>
@@ -189,7 +205,68 @@
                 </div>
             `).join('');
         }
+        function formatOutcome(outcome) {
+            const supportText = (support) => support > 0 ? ` with ${support} support` : '';
+            const compareSupportText = (support1, support2) => ` (Support: ${support1} vs ${support2})`;
 
+            switch (outcome.type) {
+                case 'move_success':
+                    return `
+                        <div class="text-green-800">
+                            ${outcome.unit.type} at ${outcome.unit.location} successfully moved to ${outcome.target}
+                            ${supportText(outcome.support)}
+                        </div>`;
+                
+                case 'bounce':
+                    return `
+                        <div class="text-amber-800">
+                            ${outcome.unit1.type} from ${outcome.unit1.location} bounced with ${outcome.unit2.type} 
+                            from ${outcome.unit2.location} at ${outcome.target}
+                            ${(outcome.support1 > 0 || outcome.support2 > 0) ? 
+                                compareSupportText(outcome.support1, outcome.support2) : ''}
+                        </div>`;
+                
+                case 'push':
+                    return `
+                        <div class="text-red-800">
+                            ${outcome.attacker.type} from ${outcome.attacker.location} pushed ${outcome.defender.type} 
+                            at ${outcome.defender.location}
+                            ${(outcome.attack_support > 0 || outcome.defense_support > 0) ? 
+                                compareSupportText(outcome.attack_support, outcome.defense_support) : ''}
+                        </div>`;
+                
+                case 'support_success':
+                    return `
+                        <div class="text-blue-800">
+                            ${outcome.supporter.type} at ${outcome.supporter.location} successfully supported 
+                            ${outcome.supported.type} from ${outcome.supported.location} to ${outcome.target}
+                        </div>`;
+                
+                case 'support_cut':
+                    return `
+                        <div class="text-orange-800">
+                            Support from ${outcome.supporter.type} at ${outcome.supporter.location} was cut by 
+                            ${outcome.attacker.type} from ${outcome.attacker.location}
+                        </div>`;
+                
+                case 'hold':
+                    return `
+                        <div class="text-green-800">
+                            ${outcome.unit.type} at ${outcome.unit.location} held position
+                            ${supportText(outcome.support)}
+                        </div>`;
+                
+                case 'bounce_hold':
+                    return `
+                        <div class="text-amber-800">
+                            ${outcome.unit.type} at ${outcome.unit.location} bounced back after failed attack
+                            ${supportText(outcome.support)}
+                        </div>`;
+                
+                default:
+                    return '';
+            }
+        }
         // Submit Orders
         document.getElementById('submitOrdersBtn').addEventListener('click', async () => {
             const response = await fetch(`/api/game/${gameId}/submit-orders`, {
@@ -255,8 +332,68 @@
                     </button>
                 </div>
             `;
-            document.body.appendChild(modal);
-            
+            function formatOutcome(outcome) {
+    const supportText = (support) => support > 0 ? ` with ${support} support` : '';
+    const compareSupportText = (support1, support2) => ` (Support: ${support1} vs ${support2})`;
+
+    switch (outcome.type) {
+        case 'move_success':
+            return `
+                <div class="text-green-800">
+                    ${outcome.unit.type} at ${outcome.unit.location} successfully moved to ${outcome.target}
+                    ${supportText(outcome.support)}
+                </div>`;
+        
+        case 'bounce':
+            return `
+                <div class="text-amber-800">
+                    ${outcome.unit1.type} from ${outcome.unit1.location} bounced with ${outcome.unit2.type} 
+                    from ${outcome.unit2.location} at ${outcome.target}
+                    ${(outcome.support1 > 0 || outcome.support2 > 0) ? 
+                        compareSupportText(outcome.support1, outcome.support2) : ''}
+                </div>`;
+        
+        case 'push':
+            return `
+                <div class="text-red-800">
+                    ${outcome.attacker.type} from ${outcome.attacker.location} pushed ${outcome.defender.type} 
+                    at ${outcome.defender.location}
+                    ${(outcome.attack_support > 0 || outcome.defense_support > 0) ? 
+                        compareSupportText(outcome.attack_support, outcome.defense_support) : ''}
+                </div>`;
+        
+        case 'support_success':
+            return `
+                <div class="text-blue-800">
+                    ${outcome.supporter.type} at ${outcome.supporter.location} successfully supported 
+                    ${outcome.supported.type} from ${outcome.supported.location} to ${outcome.target}
+                </div>`;
+        
+        case 'support_cut':
+            return `
+                <div class="text-orange-800">
+                    Support from ${outcome.supporter.type} at ${outcome.supporter.location} was cut by 
+                    ${outcome.attacker.type} from ${outcome.attacker.location}
+                </div>`;
+        
+        case 'hold':
+            return `
+                <div class="text-green-800">
+                    ${outcome.unit.type} at ${outcome.unit.location} held position
+                    ${supportText(outcome.support)}
+                </div>`;
+        
+        case 'bounce_hold':
+            return `
+                <div class="text-amber-800">
+                    ${outcome.unit.type} at ${outcome.unit.location} bounced back after failed attack
+                    ${supportText(outcome.support)}
+                </div>`;
+        
+        default:
+            return '';
+    }
+}
             selectedOrders = {};
             updateOrdersSummary();
         });

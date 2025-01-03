@@ -90,8 +90,9 @@ def create_provinces():
     ]
 
 class Nation:
-    def __init__(self, name, supcents, units):
+    def __init__(self, name, adjective, supcents, units):
         self.name = name
+        self.adjective = adjective
         self.supcents = supcents
         self.units = units
 
@@ -99,6 +100,7 @@ class Unit:
     def __init__(self, location, isFleet):
         self.location = location
         self.isFleet = isFleet
+        self.cuck = False
 
     def getType(self):
         if self.isFleet:
@@ -113,36 +115,43 @@ def create_nations():
     return [
         Nation(
             "Austria",
+            "Austrian",
             ["BUD", "TRI", "VIE"],
             [Unit("BUD", False), Unit("VIE", False), Unit("TRI", True)]
         ),
         Nation(
             "England",
+            "English",
             ["EDI", "LON", "LVP"],
             [Unit("EDI", True), Unit("LON", True), Unit("LVP", False)]
         ),
         Nation(
             "France",
+            "French",
             ["BRE", "MAR", "PAR"],
             [Unit("BRE", True), Unit("MAR", False), Unit("PAR", False)]
         ),
         Nation(
             "Germany",
+            "German",
             ["BER", "KIE", "MUN"],
             [Unit("KIE", True), Unit("BER", False), Unit("MUN", False)]
         ),
         Nation(
             "Italy",
+            "Italian",
             ["NAP", "ROM", "VEN"],
             [Unit("NAP", True), Unit("ROM", False), Unit("VEN", False)]
         ),
         Nation(
             "Russia",
+            "Russian",
             ["MOS", "SEV", "STP", "WAR"],
             [Unit("WAR", False), Unit("MOS", False), Unit("SEV", True), Unit("STP/SC", True)]
         ),
         Nation(
             "Turkey",
+            "Turkish",
             ["ANK", "CON", "SMY"],
             [Unit("ANK", True), Unit("CON", False), Unit("SMY", False)]
         )
@@ -244,30 +253,44 @@ def getAllMoves(gameState):
         for unit in nation.units:
             moves = moves + checkOptionsOneUnit(gameState, unit)
 
-# Resolution
+# Resolution 
 def processTurns(gameState, turn):
     print("------PROCESSING TURN-------")
+    outcomes = []
+
     #resolve supports and cutoff supports
     for order in turn:
-        if type(order) is Support:
+        if type(order) is Support: #check for supports in order list
             for schmorder in turn:
-                if type(schmorder) is Move:
-                    if schmorder.targetProvince == order.unit.location:     
+                if type(schmorder) is Move: #check for moves in order list that may cancel support or be supported
+                    
+                    #check if support has been cut
+                    if schmorder.targetProvince == order.unit.location:     #need to add scenario where supported move attacks schmorder's location so cutoff doesn't matter
                         order.cutOff = True
                         print(f"{schmorder.unit.getType()} in {schmorder.unit.location} cut off support from the {order.unit.getType()} in {order.unit.location}.")
-                    if (order.supported_move.unit == schmorder.unit) and (order.supported_move.targetProvince == schmorder.targetProvince) and (not order.cutOff):
-                        schmorder.support += 1
-                        print(f"{order.unit.getType()} in {order.unit.location} successfully added support to {schmorder.unit.getType()} of {schmorder.unit.location}'s attack on {schmorder.targetProvince}.")
+                    
+                    #check if its supporting an actually ordered move
+                    if (order.supported_move.unit == schmorder.unit) and (order.supported_move.targetProvince == schmorder.targetProvince):
+                        if not order.cutOff:
+                            schmorder.support += 1
+                            print(f"{order.unit.getType()} in {order.unit.location} successfully added support to {schmorder.unit.getType()} of {schmorder.unit.location}'s attack on {schmorder.targetProvince}.")
 
-    #resolve bounces
+    #resolve moves
     for order in turn:
         if type(order) is Move:
             for schmorder in turn:
-                if type(schmorder) is Move:
-                    if (order.targetProvince == schmorder.targetProvince) and (order.support == schmorder.support) and (order != schmorder):
-                        print(f"{order.unit.getType()} from {order.unit.location} bounced with {schmorder.unit.getType()} from {schmorder.unit.location} on the battleground of {order.targetProvince}")
-                        order.targetProvince = order.unit.location
-                        schmorder.targetProvince = schmorder.unit.location
+                if schmorder != order:
+                    if type(schmorder) is Move:
+                        if (order.targetProvince == schmorder.targetProvince) and (order.support == schmorder.support): # bounce conditions
+                            print(f"{order.unit.getType()} from {order.unit.location} bounced with {schmorder.unit.getType()} from {schmorder.unit.location} on the battleground of {order.targetProvince}")
+                            order.targetProvince = order.unit.location # send bouncing armies back to where the came from
+                            schmorder.targetProvince = schmorder.unit.location # send bouncing armies back to where they came from 
+                        if (order.targetProvince == schmorder.targetProvince) and (order.support > schmorder.support): # push conditions
+                            for nation in gameState.nations:
+                                for unit in nation.units:
+                                    if unit == schmorder.unit:
+                                        unit.cuck = True
+                                        print(f"{nation.adjective} {unit.getType()} in {unit.location} was defeated and pushed by {order.unit.getType()} from {order.unit.location}")
 
     for nation in gameState.nations:
         for unit in nation.units:
@@ -282,7 +305,7 @@ def processTurns(gameState, turn):
                             print(f"Moving {unit.getType()} of {nation.name} from {unit.location} to {order.targetProvince}.")
                         unit.move(order.targetProvince)
 
-    return gameState
+    return gameState, outcomes
 
 # Command Line Orders
 def select_nation(gameState):

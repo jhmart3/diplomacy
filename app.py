@@ -98,7 +98,7 @@ def submit_orders(game_id):
     if not nation:
         return jsonify({'error': 'Nation not found'}), 404
     
-    # Convert the received orders into Move and Support objects
+    # Convert orders into Move and Support objects
     processed_orders = []
     for unit_loc, order in orders_data['orders'].items():
         unit = next((u for u in nation.units if u.location == unit_loc), None)
@@ -107,7 +107,6 @@ def submit_orders(game_id):
                 move = Move(unit, order['target'])
                 processed_orders.append(move)
             elif order['type'] == 'support':
-                # Find the supported unit
                 for n in game.nations:
                     supported_unit = next((u for u in n.units if u.location == order['supported_unit']['location']), None)
                     if supported_unit:
@@ -116,17 +115,18 @@ def submit_orders(game_id):
                         processed_orders.append(support)
                         break
     
-    # Process the orders using the engine
+    # Process orders and get outcomes
     old_state = {nation.name: [(u.location, u.getType()) for u in nation.units] for nation in game.nations}
-    game = processTurns(game, processed_orders)
+    game, outcomes = processTurns(game, processed_orders)
     new_state = {nation.name: [(u.location, u.getType()) for u in nation.units] for nation in game.nations}
     
     return jsonify({
         'message': f'Orders processed for {nation.name}',
         'oldState': old_state,
         'newState': new_state,
-        'orders': orders_data['orders']
+        'orders': orders_data['orders'],
+        'outcomes': outcomes
     })
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host = '0.0.0.0', debug=True)
