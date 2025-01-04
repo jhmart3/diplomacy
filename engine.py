@@ -5,6 +5,29 @@ class Province:
         self.isSupply = isSupply
         self.connections = connections
 
+class Nation:
+    def __init__(self, name, adjective, supcents, units):
+        self.name = name
+        self.adjective = adjective
+        self.supcents = supcents
+        self.units = units
+        self.startingSupCents = supcents
+
+class Unit:
+    def __init__(self, location, isFleet):
+        self.location = location
+        self.isFleet = isFleet
+        self.isCuck = False
+
+    def getType(self):
+        if self.isFleet:
+            return "Fleet"
+        else:
+            return "Army"
+
+    def move(self, province):
+        self.location = province
+
 def create_provinces():
     return [
         Province("ADR", "water", False, ["ALB", "APU", "ION", "TRI", "VEN"]),
@@ -88,29 +111,6 @@ def create_provinces():
         Province("WES", "water", False, ["MAO", "LYO", "NAF", "SPA/SC", "TUN", "TYS"]),
         Province("YOR", "coast", False, ["EDI", "LON", "LVP", "NTH", "WAL"]),
     ]
-
-class Nation:
-    def __init__(self, name, adjective, supcents, units):
-        self.name = name
-        self.adjective = adjective
-        self.supcents = supcents
-        self.units = units
-        self.startingSupCents = supcents
-
-class Unit:
-    def __init__(self, location, isFleet):
-        self.location = location
-        self.isFleet = isFleet
-        self.isCuck = False
-
-    def getType(self):
-        if self.isFleet:
-            return "Fleet"
-        else:
-            return "Army"
-
-    def move(self, province):
-        self.location = province
 
 def create_nations():
     return [
