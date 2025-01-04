@@ -254,7 +254,7 @@ def getAllMoves(gameState):
             moves = moves + checkOptionsOneUnit(gameState, unit)
 
 # Resolution 
-def processTurns(gameState, turn):
+def processTurn(gameState, turn):
     print("------PROCESSING TURN-------")
     outcomes = []
 
@@ -308,21 +308,17 @@ def processTurns(gameState, turn):
     return gameState, outcomes
 
 def getRetreatOptions(gameState, unit):
-    for nation in gameState.nations:
-        for test_unit in nation.units:
-            if test_unit.cuck:
-                pot_retreats = checkPossibleMoves(gameState, test_unit)
-                retreatOptions = []
-                for retreat in pot_retreats:
-                    potential_retreat = True
-                    for schnation in gameState.nations:
-                        for schmunit in schnation.units:
-                            if retreat.targetProvince == schmunit.location & (nation != schnation & unit != schmunit):
-                                potential_retreat = False
-                    if potential_retreat:
-                        retreatOptions.append(retreat)
+    pot_retreats = checkPossibleMoves(gameState, unit)
+    retreatOptions = []
+    for retreat in pot_retreats:
+        potential_retreat = True
+        for schnation in gameState.nations:
+            for schmunit in schnation.units:
+                if retreat.targetProvince == schmunit.location & (nation != schnation & unit != schmunit):
+                    potential_retreat = False
+        if potential_retreat:
+            retreatOptions.append(retreat)
     return retreatOptions
-
 
 
 
