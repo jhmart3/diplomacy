@@ -28,6 +28,26 @@ class Unit:
     def move(self, province):
         self.location = province
 
+class GameState:
+    def __init__(self, nations, provinces):
+        self.nations = nations
+        self.provinces = provinces
+
+class Move:
+    def __init__(self, unit, target):
+        self.unit = unit
+        self.targetProvince = target
+        self.support = 0
+        self.isHold = False
+        if self.unit.location == self.targetProvince:
+            self.isHold = True
+
+class Support:
+    def __init__(self, unit, supported_move):
+        self.unit = unit
+        self.supported_move = supported_move
+        self.cutOff = False
+
 def create_provinces():
     return [
         Province("ADR", "water", False, ["ALB", "APU", "ION", "TRI", "VEN"]),
@@ -123,30 +143,10 @@ def create_nations():
         Nation("Turkey", "Turkish", ["ANK", "CON", "SMY"], [Unit("ANK", True), Unit("CON", False), Unit("SMY", False)])
     ]
 
-class GameState:
-    def __init__(self, nations, provinces):
-        self.nations = nations
-        self.provinces = provinces
-
 def create_gameState():
     nations = create_nations()
     provinces = create_provinces()
     return GameState(nations, provinces)
-
-class Move:
-    def __init__(self, unit, target):
-        self.unit = unit
-        self.targetProvince = target
-        self.support = 0
-        self.isHold = False
-        if self.unit.location == self.targetProvince:
-            self.isHold = True
-
-class Support:
-    def __init__(self, unit, supported_move):
-        self.unit = unit
-        self.supported_move = supported_move
-        self.cutOff = False
 
 def findProvince(prov_str, gameState):
     for game_province in gameState.provinces:
