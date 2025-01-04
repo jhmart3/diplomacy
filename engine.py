@@ -100,7 +100,7 @@ class Unit:
     def __init__(self, location, isFleet):
         self.location = location
         self.isFleet = isFleet
-        self.cuck = False
+        self.isCuck = False
 
     def getType(self):
         if self.isFleet:
@@ -289,7 +289,7 @@ def processTurn(gameState, turn):
                             for nation in gameState.nations:
                                 for unit in nation.units:
                                     if unit == schmorder.unit:
-                                        unit.cuck = True
+                                        unit.isCuck = True
                                         print(f"{nation.adjective} {unit.getType()} in {unit.location} was defeated and pushed by {order.unit.getType()} from {order.unit.location}")
 
     for nation in gameState.nations:
@@ -319,8 +319,6 @@ def getRetreatOptions(gameState, unit):
         if potential_retreat:
             retreatOptions.append(retreat)
     return retreatOptions
-
-
 
 # Command Line Orders
 def select_nation(gameState):
@@ -391,6 +389,25 @@ def issue_orders(gameState, nation):
                 print("Invalid input. Please enter a number.")
     return orders
 
+def issue_winterOrders(gameState, nation):
+    #recalculate supply centers
+    for nation in gameState.nations:
+        for unit in nation.units:
+            unit_loc = findProvince(unit.location, gameState.provinces)
+            if unit_loc.isSupply and not unit.isCuck:
+                if unit.location not in nation.supcents:
+                    for schnation in gameState.nations:
+                        if unit.location in schnation.supcents and schnation != nation:
+                            schnation.supcents.remove(unit.location)
+                    nation.supcents.append(unit.location)
+
+    
+    
+    #retreat orders
+
+
+    #build
+
 if __name__ == "__main__":
     gameState = create_gameState()
 
@@ -411,4 +428,4 @@ if __name__ == "__main__":
                 move_target = order.supported_move.targetProvince
                 print(f"Support {supported_unit.getType()} from {supported_unit.location} to {move_target}.")
 
-        gameState = processTurns(gameState, orders)
+        gameState = processTurn(gameState, orders)
