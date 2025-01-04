@@ -182,7 +182,7 @@ class Support:
         self.supported_move = supported_move
         self.cutOff = False
 
-def findProvince(name, provinces):
+def findProvince(prov_str, provinces):
     for game_province in provinces:
             if name == game_province.name:
                 return game_province
@@ -307,6 +307,25 @@ def processTurns(gameState, turn):
 
     return gameState, outcomes
 
+def getRetreatOptions(gameState, unit):
+    for nation in gameState.nations:
+        for test_unit in nation.units:
+            if test_unit.cuck:
+                pot_retreats = checkPossibleMoves(gameState, test_unit)
+                retreatOptions = []
+                for retreat in pot_retreats:
+                    potential_retreat = True
+                    for schnation in gameState.nations:
+                        for schmunit in schnation.units:
+                            if retreat.targetProvince == schmunit.location & (nation != schnation & unit != schmunit):
+                                potential_retreat = False
+                    if potential_retreat:
+                        retreatOptions.append(retreat)
+    return retreatOptions
+
+
+
+
 # Command Line Orders
 def select_nation(gameState):
     print("Select a nation:")
@@ -357,11 +376,8 @@ def issue_orders(gameState, nation):
 
         while True:
             try:
-                choice = int(input(f"Choose an action for {unit.getType()} in {unit.location} (or 0 to skip): "))
-                if choice == 0:
-                    print(f"Skipping action for {unit.getType()} in {unit.location}.")
-                    break
-                elif 1 <= choice <= len(moves):
+                choice = int(input(f"Choose an action for {unit.getType()} in {unit.location}:"))
+                if 1 <= choice <= len(moves):
                     selected_move = moves[choice - 1]
                     orders.append(selected_move)
                     print(f"Order added: {unit.getType()} in {unit.location} -> {selected_move.targetProvince}")
