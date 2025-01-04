@@ -95,6 +95,7 @@ class Nation:
         self.adjective = adjective
         self.supcents = supcents
         self.units = units
+        self.startingSupCents = supcents
 
 class Unit:
     def __init__(self, location, isFleet):
@@ -182,25 +183,25 @@ class Support:
         self.supported_move = supported_move
         self.cutOff = False
 
-def findProvince(prov_str, provinces):
-    for game_province in provinces:
-            if name == game_province.name:
+def findProvince(prov_str, gameState):
+    for game_province in gameState.provinces:
+            if prov_str == game_province.name:
                 return game_province
-    print(f"{name} was not found")
+    print(f"{prov_str} was not found")
     return None
 
 # Move Engine
 def checkPossibleMoves(gameState, unit):
     # find unit's location as a province object in gamestate
     loc = unit.location
-    unit_province = findProvince(loc, gameState.provinces)
+    unit_province = findProvince(loc, gameState)
 
     #looks at valid adjacent provinces to unit's locations
     possible_moves = []
  
     neighboring_provinces = []
     for province in unit_province.connections:
-        found_province = findProvince(province, gameState.provinces)
+        found_province = findProvince(province, gameState)
         neighboring_provinces.append(found_province)
     
     for province in neighboring_provinces:
@@ -219,7 +220,7 @@ def checkPossibleMoves(gameState, unit):
 
 def checkSupportOptions(gameState, unit):
     loc = unit.location
-    unit_province = findProvince(loc, gameState.provinces)
+    unit_province = findProvince(loc, gameState)
     supporter_possible_moves = checkPossibleMoves(gameState, unit)
     possible_supports = []
     for nation in gameState.nations:
@@ -241,7 +242,8 @@ def checkSupportOptions(gameState, unit):
         print(f"No possible supports for the {unit.getType()} in {unit.getLocation}")
 
 def checkConvoyOptions(gameState, unit):
-    #to do
+    unit_loc = findProvince(unit.location, gameState)
+    
     return
 
 def checkOptionsOneUnit(gameState, unit):
@@ -256,7 +258,6 @@ def getAllMoves(gameState):
 # Resolution 
 def processTurn(gameState, turn):
     print("------PROCESSING TURN-------")
-    outcomes = []
 
     #resolve supports and cutoff supports
     for order in turn:
@@ -292,6 +293,7 @@ def processTurn(gameState, turn):
                                         unit.isCuck = True
                                         print(f"{nation.adjective} {unit.getType()} in {unit.location} was defeated and pushed by {order.unit.getType()} from {order.unit.location}")
 
+    #actually move units
     for nation in gameState.nations:
         for unit in nation.units:
             for order in turn:
@@ -305,20 +307,63 @@ def processTurn(gameState, turn):
                             print(f"Moving {unit.getType()} of {nation.name} from {unit.location} to {order.targetProvince}.")
                         unit.move(order.targetProvince)
 
-    return gameState, outcomes
+    #recalculate supply centers after movement, ignoring cucks
+    for nation in gameState.nations:
+        for unit in nation.units:
+            unit_loc = findProvince(unit.location, gameState)
+            if unit_loc.isSupply and not unit.isCuck:
+                if unit.location not in nation.supcents:
+                    for schnation in gameState.nations:
+                        if unit.location in schnation.supcents and schnation != nation:
+                            schnation.supcents.remove(unit.location)
+                    nation.supcents.append(unit.location)
+
+    return gameState
 
 def getRetreatOptions(gameState, unit):
     pot_retreats = checkPossibleMoves(gameState, unit)
     retreatOptions = []
     for retreat in pot_retreats:
-        potential_retreat = True
+        valid_retreat = True
         for schnation in gameState.nations:
             for schmunit in schnation.units:
-                if retreat.targetProvince == schmunit.location & (nation != schnation & unit != schmunit):
-                    potential_retreat = False
-        if potential_retreat:
+                if retreat.targetProvince == schmunit.location:
+                    valid_retreat = False
+        if valid_retreat and retreat.targetProvince != unit.location:
             retreatOptions.append(retreat)
     return retreatOptions
+
+def getPossibleWinterOrders(gameState, nation):
+
+    possibleWinterMoves = []
+    #retreat orders
+    for unit in nation.units:
+        if unit.isCuck:
+            retreatOptions = getRetreatOptions(gameState, unit)
+
+    for option in retreatOptions:
+        possibleWinterMoves.append(option)    
+
+    #build
+
+    allowance = len(nation.supcents) - len(nation.units)
+
+    if allowance > 0:
+        for buildSpot in nation.startingSupCents:
+            if buildSpot in nation.supcents:
+                occupied = False
+                for unit in nation.units:
+                    if unit.location == buildSpot:
+                        occupied = True
+                if not occupied:
+                    loc = findProvince(buildSpot)
+                    if loc.ptype == "coast":
+                        possibleWinterMoves.append(Unit(buildSpot, True))
+                        possibleWinterMoves.append(Unit(buildSpot, False))
+                    elif loc.ptype == "land":
+                        possibleWinterMoves.append(Unit(buildSpot, False))
+
+    return possibleWinterMoves, allowance
 
 # Command Line Orders
 def select_nation(gameState):
@@ -388,32 +433,20 @@ def issue_orders(gameState, nation):
             except ValueError:
                 print("Invalid input. Please enter a number.")
     return orders
-
-def issue_winterOrders(gameState, nation):
-    #recalculate supply centers
-    for nation in gameState.nations:
-        for unit in nation.units:
-            unit_loc = findProvince(unit.location, gameState.provinces)
-            if unit_loc.isSupply and not unit.isCuck:
-                if unit.location not in nation.supcents:
-                    for schnation in gameState.nations:
-                        if unit.location in schnation.supcents and schnation != nation:
-                            schnation.supcents.remove(unit.location)
-                    nation.supcents.append(unit.location)
-
     
-    
-    #retreat orders
-
-
-    #build
-
 if __name__ == "__main__":
+
     gameState = create_gameState()
 
     selected_nation = select_nation(gameState)
 
+
+    # send initial gameState
     while True:
+        # send gameState and list of possible Fall / Spring orders
+        
+
+        # receive Fall / Spring orders from Users
         orders = issue_orders(gameState, selected_nation)
 
         print("\nYour orders:")
@@ -428,4 +461,23 @@ if __name__ == "__main__":
                 move_target = order.supported_move.targetProvince
                 print(f"Support {supported_unit.getType()} from {supported_unit.location} to {move_target}.")
 
+        # process turn
         gameState = processTurn(gameState, orders)
+
+
+        # send gameState list of possible Winter / Summer orders
+        winter_options = getPossibleWinterOrders(gameState, selected_nation)
+
+        for option in winter_options:
+            if type(option) is Move:
+                print(f"Defeated {option.unit.getType()} in {option.unit.location} can retreat to {option.targetProvince}")
+
+        # receive Summer / Winter orders from Users
+
+
+
+        # process Summer / Winter orders
+
+
+
+
