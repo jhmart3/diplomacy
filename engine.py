@@ -114,48 +114,13 @@ def create_provinces():
 
 def create_nations():
     return [
-        Nation(
-            "Austria",
-            "Austrian",
-            ["BUD", "TRI", "VIE"],
-            [Unit("BUD", False), Unit("VIE", False), Unit("TRI", True)]
-        ),
-        Nation(
-            "England",
-            "English",
-            ["EDI", "LON", "LVP"],
-            [Unit("EDI", True), Unit("LON", True), Unit("LVP", False)]
-        ),
-        Nation(
-            "France",
-            "French",
-            ["BRE", "MAR", "PAR"],
-            [Unit("BRE", True), Unit("MAR", False), Unit("PAR", False)]
-        ),
-        Nation(
-            "Germany",
-            "German",
-            ["BER", "KIE", "MUN"],
-            [Unit("KIE", True), Unit("BER", False), Unit("MUN", False)]
-        ),
-        Nation(
-            "Italy",
-            "Italian",
-            ["NAP", "ROM", "VEN"],
-            [Unit("NAP", True), Unit("ROM", False), Unit("VEN", False)]
-        ),
-        Nation(
-            "Russia",
-            "Russian",
-            ["MOS", "SEV", "STP", "WAR"],
-            [Unit("WAR", False), Unit("MOS", False), Unit("SEV", True), Unit("STP/SC", True)]
-        ),
-        Nation(
-            "Turkey",
-            "Turkish",
-            ["ANK", "CON", "SMY"],
-            [Unit("ANK", True), Unit("CON", False), Unit("SMY", False)]
-        )
+        Nation("Austria", "Austrian", ["BUD", "TRI", "VIE"], [Unit("BUD", False), Unit("VIE", False), Unit("TRI", True)]),
+        Nation("England", "English", ["EDI", "LON", "LVP"], [Unit("EDI", True), Unit("LON", True), Unit("LVP", False)]),
+        Nation("France", "French", ["BRE", "MAR", "PAR"], [Unit("BRE", True), Unit("MAR", False), Unit("PAR", False)]),
+        Nation("Germany", "German", ["BER", "KIE", "MUN"], [Unit("KIE", True), Unit("BER", False), Unit("MUN", False)]),
+        Nation("Italy", "Italian", ["NAP", "ROM", "VEN"], [Unit("NAP", True), Unit("ROM", False), Unit("VEN", False)]),
+        Nation("Russia", "Russian", ["MOS", "SEV", "STP", "WAR"], [Unit("WAR", False), Unit("MOS", False), Unit("SEV", True), Unit("STP/SC", True)]),
+        Nation("Turkey", "Turkish", ["ANK", "CON", "SMY"], [Unit("ANK", True), Unit("CON", False), Unit("SMY", False)])
     ]
 
 class GameState:
