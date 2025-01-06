@@ -9,31 +9,159 @@
         body {
             font-family: Arial, sans-serif;
             margin: 20px;
+            line-height: 1.6;
         }
-        #jsonDisplay {
-            white-space: pre-wrap;
-            background-color: #f4f4f4;
-            border: 1px solid #ccc;
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .section {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f5f5f5;
+            border-radius: 4px;
+        }
+        .unit {
+            margin-bottom: 15px;
             padding: 10px;
-            max-height: 400px;
-            overflow-y: auto;
+            background-color: white;
+            border-left: 4px solid #007bff;
+        }
+        h2 {
+            color: #333;
+            margin-top: 0;
+        }
+        h3 {
+            color: #666;
+            margin: 10px 0;
+        }
+        select {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            padding: 8px 16px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .orders-form {
+            margin-top: 10px;
         }
     </style>
 </head>
 <body>
-    <h1>Game State Viewer</h1>
-    <div>
-        <label for="gameId">Game ID:</label>
-        <input type="text" id="gameId" placeholder="Enter Game ID">
-        <label for="playerName">Player Name:</label>
-        <input type="text" id="playerName" placeholder="Enter Player Name">
-        <button id="getGameBtn">Get Game State</button>
+    <div class="container">
+        <div class="section">
+            <h2>Game Controls</h2>
+            <input type="text" id="gameId" placeholder="Enter Game ID">
+            <input type="text" id="playerName" placeholder="Enter Player Name">
+            <button id="getGameBtn">Get Game State</button>
+        </div>
+
+        <div class="section">
+            <h2>Player Info</h2>
+            <div id="playerInfo"></div>
+        </div>
+
+        <div class="section">
+            <h2>Units and Orders</h2>
+            <div id="unitsDisplay"></div>
+            <button id="submitOrders">Submit Orders</button>
+        </div>
     </div>
-    <h2>Received Game State</h2>
-    <div id="jsonDisplay">No data received yet.</div>
 
     <script>
         const socket = io();
+        let currentGameState = null;
+
+        function formatOrder(order) {
+            if ('supported_move' in order) {
+                return `Support ${order.supported_move.unit.location} to ${order.supported_move.targetProvince}`;
+            } else {
+                return order.isHold ? 'Hold' : `Move to ${order.targetProvince}`;
+            }
+        }
+
+        function createOrderSelectOptions(possibleOrders) {
+            return possibleOrders.map((order, index) => {
+                const orderText = formatOrder(order);
+                return `<option value="${index}">${orderText}</option>`;
+            }).join('');
+        }
+
+        function displayGameState(data) {
+            try {
+                const gameData = JSON.parse(data);
+                currentGameState = gameData;
+                
+                // Display player info
+                const playerInfo = document.getElementById('playerInfo');
+                playerInfo.innerHTML = `
+                    <p><strong>Player Name:</strong> ${gameData.player.name}</p>
+                    <p><strong>Nation:</strong> ${gameData.player.nation_str}</p>
+                `;
+
+                // Get units from the nation
+                const playerNation = gameData.gameState.nations.find(n => n.name === gameData.player.nation_str);
+                const units = playerNation ? playerNation.units : [];
+
+                // Display units and their orders
+                const unitsDisplay = document.getElementById('unitsDisplay');
+                unitsDisplay.innerHTML = units.map((unit, unitIndex) => {
+                    // Find current orders for this unit
+                    const currentOrders = gameData.player.pendingOrders?.find(order => 
+                        order.unit.location === unit.location
+                    );
+
+                    // Find possible orders for this unit
+                    const possibleOrders = gameData.possible_orders[unitIndex];
+
+                    return `
+                        <div class="unit" data-unit-index="${unitIndex}">
+                            <h3>${unit.isFleet ? 'Fleet' : 'Army'} in ${unit.location}</h3>
+                            <div class="orders-form">
+                                <select class="order-select" data-unit-location="${unit.location}">
+                                    ${createOrderSelectOptions(possibleOrders)}
+                                </select>
+                            </div>
+                            <p><strong>Current Order:</strong> ${
+                                currentOrders ? formatOrder(currentOrders) : 'No orders'
+                            }</p>
+                        </div>
+                    `;
+                }).join('');
+            } catch (err) {
+                console.error('Error displaying game state:', err);
+            }
+        }
+
+        // Handle order submission
+        document.getElementById('submitOrders').addEventListener('click', () => {
+            if (!currentGameState) return;
+
+            const orderSelects = document.querySelectorAll('.order-select');
+            const orders = Array.from(orderSelects).map(select => {
+                const unitIndex = select.closest('.unit').dataset.unitIndex;
+                const selectedOrderIndex = select.value;
+                return currentGameState.possible_orders[unitIndex][selectedOrderIndex];
+            });
+
+            socket.emit('order_update', {
+                game_id: document.getElementById('gameId').value,
+                player_name: document.getElementById('playerName').value,
+                orders: orders
+            });
+        });
 
         // Handle button click to request game data
         document.getElementById('getGameBtn').addEventListener('click', () => {
@@ -41,23 +169,14 @@
             const playerName = document.getElementById('playerName').value;
 
             if (gameId && playerName) {
-                socket.emit('get_game', { game_id: gameId, player_name: playerName });
+                socket.emit('join_game', { game_id: gameId, player_name: playerName });
             } else {
                 alert('Please enter both Game ID and Player Name.');
             }
         });
 
         // Listen for game updates from the server
-        socket.on('game_update', (data) => {
-            const jsonDisplay = document.getElementById('jsonDisplay');
-            try {
-                const parsedData = JSON.parse(data); // Parse JSON string into object
-                jsonDisplay.textContent = JSON.stringify(parsedData, null, 4); // Pretty print JSON
-            } catch (err) {
-                console.error('Error parsing JSON:', err);
-                jsonDisplay.textContent = 'Invalid JSON received!';
-            }
-        });
+        socket.on('game_update', displayGameState);
     </script>
 </body>
 </html>

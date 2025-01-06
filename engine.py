@@ -302,10 +302,12 @@ def processMainPhase(gameState, turn):
                 if type(schmorder) is Move: #check for moves in order list that may cancel support or be supported
                     
                     #check if support has been cut
-                    if schmorder.targetProvince == order.unit.location:     #need to add scenario where supported move attacks schmorder's location so cutoff doesn't matter
+                    if schmorder.targetProvince == order.unit.location and (schmorder.unit.location != order.supported_move.targetProvince):
                         order.cutOff = True
                         print(f"{schmorder.unit.getType()} in {schmorder.unit.location} cut off support from the {order.unit.getType()} in {order.unit.location}.")
                     
+
+
                     #check if its supporting an actually ordered move
                     if (order.supported_move.unit == schmorder.unit) and (order.supported_move.targetProvince == schmorder.targetProvince):
                         if not order.cutOff:
@@ -448,10 +450,9 @@ class Turn:
         self.orders = []
 
 class Package:
-    def __init__(self, game_id, player_username, gameState, current_orders, possible_orders):
-        self.target = player_username
+    def __init__(self, gameState, player, possible_orders):
         self.gameState = gameState
-        self.current_orders = current_orders
+        self.player = player
         self.possible_orders = possible_orders
 
     def to_json(self):
@@ -496,6 +497,7 @@ class Game:
         self.turns = []
         self.turns.append(Turn(initial_gameState))
         self.turnLengthMinutes = turnLengthMinutes
+        self.setDefaultMainPhaseOrders()
 
     def callOrders(self):
         for player in self.players:
@@ -573,10 +575,66 @@ class Game:
     def getPackage(self, player_name):
 
         gameState = self.turns[-1].gameState
-        pending_orders = self.getPendingMoves(player_name)
+        for player in self.players:
+            if player.name == player_name:
+                found_player = player
+
         possible_orders = self.getPossibleMoves(player_name)
         
-        return Package(player_name, gameState, pending_orders, possible_orders)
+        return Package(gameState, found_player, possible_orders)
+
+def convert_orders_from_json(orders_json):
+    """
+    Convert JSON orders back into Move/Support objects
+    
+    Args:
+        orders_json (list): List of order dictionaries from frontend
+        
+    Returns:
+        list: List of Move and Support objects
+    """
+    converted_orders = []
+    
+    for order in orders_json:
+        # Create Unit object
+        unit = Unit(
+            location=order['unit']['location'],
+            isFleet=order['unit']['isFleet']
+        )
+        unit.isCuck = order['unit']['isCuck']
+        
+        # Check if this is a Support order by looking for supported_move
+        if 'supported_move' in order:
+            # Create Unit object for the supported unit
+            supported_unit = Unit(
+                location=order['supported_move']['unit']['location'],
+                isFleet=order['supported_move']['unit']['isFleet']
+            )
+            supported_unit.isCuck = order['supported_move']['unit']['isCuck']
+            
+            # Create Move object for the supported move
+            supported_move = Move(
+                unit=supported_unit,
+                target=order['supported_move']['targetProvince']
+            )
+            supported_move.support = order['supported_move'].get('support', 0)
+            supported_move.isHold = order['supported_move'].get('isHold', False)
+            
+            # Create Support object
+            support = Support(unit=unit, supported_move=supported_move)
+            support.cutOff = order.get('cutOff', False)
+            
+            converted_orders.append(support)
+            
+        else:
+            # Create Move object
+            move = Move(unit=unit, target=order['targetProvince'])
+            move.support = order.get('support', 0)
+            move.isHold = order.get('isHold', False)
+            
+            converted_orders.append(move)
+    
+    return converted_orders
 
 # Command Line Orders
 def select_nation(gameState):
