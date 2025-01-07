@@ -1,52 +1,11 @@
+import json
+
 class Province:
     def __init__(self, name, ptype, isSupply, connections):
         self.name = name
         self.ptype = ptype
         self.isSupply = isSupply
         self.connections = connections
-
-class Nation:
-    def __init__(self, name, adjective, supcents, units):
-        self.name = name
-        self.adjective = adjective
-        self.supcents = supcents
-        self.units = units
-        self.startingSupCents = supcents
-
-class Unit:
-    def __init__(self, location, isFleet):
-        self.location = location
-        self.isFleet = isFleet
-        self.isCuck = False
-
-    def getType(self):
-        if self.isFleet:
-            return "Fleet"
-        else:
-            return "Army"
-
-    def move(self, province):
-        self.location = province
-
-class GameState:
-    def __init__(self, nations, provinces):
-        self.nations = nations
-        self.provinces = provinces
-
-class Move:
-    def __init__(self, unit, target):
-        self.unit = unit
-        self.targetProvince = target
-        self.support = 0
-        self.isHold = False
-        if self.unit.location == self.targetProvince:
-            self.isHold = True
-
-class Support:
-    def __init__(self, unit, supported_move):
-        self.unit = unit
-        self.supported_move = supported_move
-        self.cutOff = False
 
 def create_provinces():
     return [
@@ -132,6 +91,49 @@ def create_provinces():
         Province("YOR", "coast", False, ["EDI", "LON", "LVP", "NTH", "WAL"]),
     ]
 
+class Nation:
+    def __init__(self, name, adjective, supcents, units):
+        self.name = name
+        self.adjective = adjective
+        self.supcents = supcents
+        self.units = units
+        self.startingSupCents = supcents
+
+    def getHoldOrders(self):
+        holds = []
+        for unit in self.units:
+            holds.append(Move(unit, unit.location))
+        return holds
+
+class Player:
+    def __init__(self, player_name, nation_str):
+        self.name = player_name
+        self.nation_str = nation_str
+        self.pendingOrders = []
+    
+    def holdAll(self, nation):
+        for unit in nation.units:
+            self.pendingOrders = []
+            self.pendingOrders.append(nation.getHoldOrders())
+
+    def clearOrders(self):
+        self.pendingOrders = []
+    
+class Unit:
+    def __init__(self, location, isFleet):
+        self.location = location
+        self.isFleet = isFleet
+        self.isCuck = False
+
+    def getType(self):
+        if self.isFleet:
+            return "Fleet"
+        else:
+            return "Army"
+
+    def move(self, province):
+        self.location = province
+
 def create_nations():
     return [
         Nation("Austria", "Austrian", ["BUD", "TRI", "VIE"], [Unit("BUD", False), Unit("VIE", False), Unit("TRI", True)]),
@@ -143,10 +145,44 @@ def create_nations():
         Nation("Turkey", "Turkish", ["ANK", "CON", "SMY"], [Unit("ANK", True), Unit("CON", False), Unit("SMY", False)])
     ]
 
+class GameState:
+    def __init__(self, nations, provinces):
+        self.nations = nations
+        self.provinces = provinces
+        self.season = 1             # 1 for Fall/Spring; 2 for Retreat; 3 for Build
+
+    def to_dict(self):
+        return {
+            'nations': [nation.to_dict() for nation in self.nations],
+            'provinces': [province.to_dict() for province in self.provinces],
+            'season': self.season
+        }
+
 def create_gameState():
     nations = create_nations()
     provinces = create_provinces()
     return GameState(nations, provinces)
+
+def create_Game():
+    players = []
+    jm = Player("jm", "Austria")
+    players.append(jm)
+    Game(create_gameState(), players)
+
+class Move:
+    def __init__(self, unit, target):
+        self.unit = unit
+        self.targetProvince = target
+        self.support = 0
+        self.isHold = False
+        if self.unit.location == self.targetProvince:
+            self.isHold = True
+
+class Support:
+    def __init__(self, unit, supported_move):
+        self.unit = unit
+        self.supported_move = supported_move
+        self.cutOff = False
 
 def findProvince(prov_str, gameState):
     for game_province in gameState.provinces:
@@ -208,10 +244,10 @@ def checkSupportOptions(gameState, unit):
 
 def checkConvoyOptions(gameState, unit):
     unit_loc = findProvince(unit.location, gameState)
-    
+
     return
 
-def checkOptionsOneUnit(gameState, unit):
+def getOptionsOneUnit(gameState, unit):
     return checkPossibleMoves(gameState, unit) + checkSupportOptions(gameState, unit)
 
 def getAllMoves(gameState):
@@ -221,7 +257,7 @@ def getAllMoves(gameState):
             moves = moves + checkOptionsOneUnit(gameState, unit)
 
 # Resolution 
-def processTurn(gameState, turn):
+def processMainPhase(gameState, turn):
     print("------PROCESSING TURN-------")
 
     #resolve supports and cutoff supports
@@ -231,10 +267,12 @@ def processTurn(gameState, turn):
                 if type(schmorder) is Move: #check for moves in order list that may cancel support or be supported
                     
                     #check if support has been cut
-                    if schmorder.targetProvince == order.unit.location:     #need to add scenario where supported move attacks schmorder's location so cutoff doesn't matter
+                    if schmorder.targetProvince == order.unit.location and (schmorder.unit.location != order.supported_move.targetProvince):
                         order.cutOff = True
                         print(f"{schmorder.unit.getType()} in {schmorder.unit.location} cut off support from the {order.unit.getType()} in {order.unit.location}.")
                     
+
+
                     #check if its supporting an actually ordered move
                     if (order.supported_move.unit == schmorder.unit) and (order.supported_move.targetProvince == schmorder.targetProvince):
                         if not order.cutOff:
@@ -283,6 +321,8 @@ def processTurn(gameState, turn):
                             schnation.supcents.remove(unit.location)
                     nation.supcents.append(unit.location)
 
+    gameState.season = 2
+
     return gameState
 
 def getRetreatOptions(gameState, unit):
@@ -309,9 +349,14 @@ def getPossibleWinterOrders(gameState, nation):
     for option in retreatOptions:
         possibleWinterMoves.append(option)    
 
-    #build
 
+
+    return possibleWinterMoves
+
+def findBuildOptions(nation, gameState):
     allowance = len(nation.supcents) - len(nation.units)
+
+    possibleBuilds = []
 
     if allowance > 0:
         for buildSpot in nation.startingSupCents:
@@ -321,14 +366,240 @@ def getPossibleWinterOrders(gameState, nation):
                     if unit.location == buildSpot:
                         occupied = True
                 if not occupied:
-                    loc = findProvince(buildSpot)
+                    loc = findProvince(buildSpot, gameState)
                     if loc.ptype == "coast":
-                        possibleWinterMoves.append(Unit(buildSpot, True))
-                        possibleWinterMoves.append(Unit(buildSpot, False))
+                        possibleBuilds.append(Unit(buildSpot, True))
+                        possibleBuilds.append(Unit(buildSpot, False))
                     elif loc.ptype == "land":
-                        possibleWinterMoves.append(Unit(buildSpot, False))
+                        possibleBuilds.append(Unit(buildSpot, False))
 
-    return possibleWinterMoves, allowance
+    return possibleBuilds
+
+def processRetreatPhase(gameState, orders):
+    failed_retreat_units = []
+    for order in orders:
+        order_failed = False
+        for schmorder in orders:
+            if order.targetProvince == schmorder.targetProvince:
+                order_failed = True
+                failed_retreat_units.append(order.unit)
+                failed_retreat_units.append(schmorder.unit)
+        if not order_failed:
+            for nation in gameState.nations:
+                for unit in nation.units:
+                    if order.unit == unit:
+                        unit.move(order.targetProvince)
+    for dead_unit in failed_retreat_units:
+        for nation in gameState.nations:
+            if dead_unit in nation.units:
+                nation.units.remove(dead_unit)
+
+    gameState.season = 3
+
+    return gameState
+
+def processBuildPhase(gameState, builds):
+    for build in builds:
+        for nation in gameState.nations:
+            for startingSupCent in nation.startingSupCents:
+                if startingSupCent == build.location:
+                    nation.units.append(build)
+
+    gameState.season = 1
+
+    return gameState
+
+class Turn:
+    def __init__(self, gameState):
+        self.gameState = gameState
+        self.orders = []
+
+class Package:
+    def __init__(self, gameState, player, possible_orders):
+        self.gameState = gameState
+        self.player = player
+        self.possible_orders = possible_orders
+
+    def to_json(self):
+            def serialize(obj):
+                if isinstance(obj, (int, float, str, bool, type(None))):
+                    return obj
+                elif isinstance(obj, (set, frozenset)):  # Handle sets explicitly
+                    return list(obj)
+                elif isinstance(obj, list):
+                    return [serialize(item) for item in obj]
+                elif isinstance(obj, dict):
+                    return {key: serialize(value) for key, value in obj.items()}
+                elif hasattr(obj, '__dict__'):
+                    serialized = {}
+                    for key, value in vars(obj).items():
+                        # Skip private attributes
+                        if not key.startswith('_'):
+                            try:
+                                serialized[key] = serialize(value)
+                            except (TypeError, ValueError) as e:
+                                # If we can't serialize it, convert to string
+                                serialized[key] = str(value)
+                    return serialized
+                else:
+                    return str(obj)
+
+            try:
+                # Serialize the entire object
+                serialized_data = serialize(self.__dict__)
+                return json.dumps(serialized_data, indent=4)
+            except Exception as e:
+                print(f"Error during serialization: {str(e)}")
+                # Fallback to basic serialization
+                return json.dumps({
+                    "target": self.target,
+                    "error": "Failed to serialize complete game state"
+                })
+
+class Game:
+    def __init__(self, initial_gameState, players, turnLengthMinutes = 5):
+        self.players = players 
+        self.turns = []
+        self.turns.append(Turn(initial_gameState))
+        self.turnLengthMinutes = turnLengthMinutes
+        self.setDefaultMainPhaseOrders()
+
+    def callOrders(self):
+        for player in self.players:
+            self.turns[-1].orders.append(player.pendingOrders)
+
+    def setDefaultMainPhaseOrders(self):
+        for player in self.players:
+            for nation in self.turns[-1].gameState.nations:
+                if player.nation_str == nation.name:
+                    player.holdAll(nation)
+
+    def clearAllPlayerOrders(self):
+        for player in self.players:
+            player.pendingOrders = []
+
+    def processCurrentTurn(self):
+        currentGameState = self.turns[-1].gameState
+        
+        season = currentGameState.season
+
+        if season == 1:
+            next_gameState = processMainPhase(currentGameState, self.turns[-1].orders)
+            self.clearAllPlayerOrders()
+        elif season == 2:
+            next_gameState = processRetreatPhase(currentGameState, self.turns[-1].orders)
+            self.clearAllPlayerOrders()
+        elif season == 3:
+            next_gameState = processBuildPhase(currentGameState, self.turns[-1].orders)
+            self.setDefaultMainPhaseOrders()
+
+        self.turns.append(Turn(next_gameState))
+
+    def getPendingMoves(self, player_name):
+        player_current_moves = []
+
+        for player in self.players:
+            if player.name == player_name:
+                player_current_moves = player.pendingOrders
+
+        return player_current_moves
+    
+    def getPossibleMoves(self, player_name):
+        player_moves = []
+
+        currentGameState = self.turns[-1].gameState
+
+        gameSeason = currentGameState.season
+
+        if gameSeason == 1:                  # MAIN PHASE OPTIONS
+            for player in self.players:
+                if player.name == player_name:
+                    for nation in currentGameState.nations:
+                        if player.nation_str == nation.name:
+                            for unit in nation.units:
+                                player_moves.append(getOptionsOneUnit(currentGameState, unit))
+
+        if gameSeason == 2:                 # RETREAT PHASE OPTIONS
+            for player in self.players:
+                if player.name == player_name:
+                    for nation in self.turns[-1].nations:
+                        if player.nation_str == nation.name:
+                            for unit in nation.units:
+                                if unit.isCuck:
+                                    player_moves.append(getRetreatOptions(currentGameState, unit))
+
+        if gameSeason == 3:                 # BUILD PHASE OPTIONS
+            for player in self.players:
+                if player.name == player_name:
+                    for nation in self.turns[-1].nations:
+                        if player.nation_str == nation.name:
+                            player_moves.append(findBuildOptions(nation, currentGameState))
+
+        return player_moves
+
+    def getPackage(self, player_name):
+
+        gameState = self.turns[-1].gameState
+        for player in self.players:
+            if player.name == player_name:
+                found_player = player
+
+        possible_orders = self.getPossibleMoves(player_name)
+        
+        return Package(gameState, found_player, possible_orders)
+
+def convert_orders_from_json(orders_json):
+    """
+    Convert JSON orders back into Move/Support objects
+    
+    Args:
+        orders_json (list): List of order dictionaries from frontend
+        
+    Returns:
+        list: List of Move and Support objects
+    """
+    converted_orders = []
+    
+    for order in orders_json:
+        # Create Unit object
+        unit = Unit(
+            location=order['unit']['location'],
+            isFleet=order['unit']['isFleet']
+        )
+        unit.isCuck = order['unit']['isCuck']
+        
+        # Check if this is a Support order by looking for supported_move
+        if 'supported_move' in order:
+            # Create Unit object for the supported unit
+            supported_unit = Unit(
+                location=order['supported_move']['unit']['location'],
+                isFleet=order['supported_move']['unit']['isFleet']
+            )
+            supported_unit.isCuck = order['supported_move']['unit']['isCuck']
+            
+            # Create Move object for the supported move
+            supported_move = Move(
+                unit=supported_unit,
+                target=order['supported_move']['targetProvince']
+            )
+            supported_move.support = order['supported_move'].get('support', 0)
+            supported_move.isHold = order['supported_move'].get('isHold', False)
+            
+            # Create Support object
+            support = Support(unit=unit, supported_move=supported_move)
+            support.cutOff = order.get('cutOff', False)
+            
+            converted_orders.append(support)
+            
+        else:
+            # Create Move object
+            move = Move(unit=unit, target=order['targetProvince'])
+            move.support = order.get('support', 0)
+            move.isHold = order.get('isHold', False)
+            
+            converted_orders.append(move)
+    
+    return converted_orders
 
 # Command Line Orders
 def select_nation(gameState):
@@ -442,7 +713,6 @@ if __name__ == "__main__":
 
 
         # process Summer / Winter orders
-
 
 
 
