@@ -7,49 +7,6 @@ class Province:
         self.isSupply = isSupply
         self.connections = connections
 
-class Nation:
-    def __init__(self, name, adjective, supcents, units):
-        self.name = name
-        self.adjective = adjective
-        self.supcents = supcents
-        self.units = units
-        self.startingSupCents = supcents
-
-class Unit:
-    def __init__(self, location, isFleet):
-        self.location = location
-        self.isFleet = isFleet
-        self.isCuck = False
-
-    def getType(self):
-        if self.isFleet:
-            return "Fleet"
-        else:
-            return "Army"
-
-    def move(self, province):
-        self.location = province
-
-class GameState:
-    def __init__(self, nations, provinces):
-        self.nations = nations
-        self.provinces = provinces
-
-class Move:
-    def __init__(self, unit, target):
-        self.unit = unit
-        self.targetProvince = target
-        self.support = 0
-        self.isHold = False
-        if self.unit.location == self.targetProvince:
-            self.isHold = True
-
-class Support:
-    def __init__(self, unit, supported_move):
-        self.unit = unit
-        self.supported_move = supported_move
-        self.cutOff = False
-
 def create_provinces():
     return [
         Province("ADR", "water", False, ["ALB", "APU", "ION", "TRI", "VEN"]),
