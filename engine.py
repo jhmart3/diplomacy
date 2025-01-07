@@ -7,6 +7,49 @@ class Province:
         self.isSupply = isSupply
         self.connections = connections
 
+class Nation:
+    def __init__(self, name, adjective, supcents, units):
+        self.name = name
+        self.adjective = adjective
+        self.supcents = supcents
+        self.units = units
+        self.startingSupCents = supcents
+
+class Unit:
+    def __init__(self, location, isFleet):
+        self.location = location
+        self.isFleet = isFleet
+        self.isCuck = False
+
+    def getType(self):
+        if self.isFleet:
+            return "Fleet"
+        else:
+            return "Army"
+
+    def move(self, province):
+        self.location = province
+
+class GameState:
+    def __init__(self, nations, provinces):
+        self.nations = nations
+        self.provinces = provinces
+
+class Move:
+    def __init__(self, unit, target):
+        self.unit = unit
+        self.targetProvince = target
+        self.support = 0
+        self.isHold = False
+        if self.unit.location == self.targetProvince:
+            self.isHold = True
+
+class Support:
+    def __init__(self, unit, supported_move):
+        self.unit = unit
+        self.supported_move = supported_move
+        self.cutOff = False
+
 def create_provinces():
     return [
         Province("ADR", "water", False, ["ALB", "APU", "ION", "TRI", "VEN"]),
@@ -136,48 +179,13 @@ class Unit:
 
 def create_nations():
     return [
-        Nation(
-            "Austria",
-            "Austrian",
-            ["BUD", "TRI", "VIE"],
-            [Unit("BUD", False), Unit("VIE", False), Unit("TRI", True)]
-        ),
-        Nation(
-            "England",
-            "English",
-            ["EDI", "LON", "LVP"],
-            [Unit("EDI", True), Unit("LON", True), Unit("LVP", False)]
-        ),
-        Nation(
-            "France",
-            "French",
-            ["BRE", "MAR", "PAR"],
-            [Unit("BRE", True), Unit("MAR", False), Unit("PAR", False)]
-        ),
-        Nation(
-            "Germany",
-            "German",
-            ["BER", "KIE", "MUN"],
-            [Unit("KIE", True), Unit("BER", False), Unit("MUN", False)]
-        ),
-        Nation(
-            "Italy",
-            "Italian",
-            ["NAP", "ROM", "VEN"],
-            [Unit("NAP", True), Unit("ROM", False), Unit("VEN", False)]
-        ),
-        Nation(
-            "Russia",
-            "Russian",
-            ["MOS", "SEV", "STP", "WAR"],
-            [Unit("WAR", False), Unit("MOS", False), Unit("SEV", True), Unit("STP/SC", True)]
-        ),
-        Nation(
-            "Turkey",
-            "Turkish",
-            ["ANK", "CON", "SMY"],
-            [Unit("ANK", True), Unit("CON", False), Unit("SMY", False)]
-        )
+        Nation("Austria", "Austrian", ["BUD", "TRI", "VIE"], [Unit("BUD", False), Unit("VIE", False), Unit("TRI", True)]),
+        Nation("England", "English", ["EDI", "LON", "LVP"], [Unit("EDI", True), Unit("LON", True), Unit("LVP", False)]),
+        Nation("France", "French", ["BRE", "MAR", "PAR"], [Unit("BRE", True), Unit("MAR", False), Unit("PAR", False)]),
+        Nation("Germany", "German", ["BER", "KIE", "MUN"], [Unit("KIE", True), Unit("BER", False), Unit("MUN", False)]),
+        Nation("Italy", "Italian", ["NAP", "ROM", "VEN"], [Unit("NAP", True), Unit("ROM", False), Unit("VEN", False)]),
+        Nation("Russia", "Russian", ["MOS", "SEV", "STP", "WAR"], [Unit("WAR", False), Unit("MOS", False), Unit("SEV", True), Unit("STP/SC", True)]),
+        Nation("Turkey", "Turkish", ["ANK", "CON", "SMY"], [Unit("ANK", True), Unit("CON", False), Unit("SMY", False)])
     ]
 
 class GameState:
